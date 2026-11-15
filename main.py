@@ -3,7 +3,7 @@ from flask import Flask, render_template, request, jsonify
 import json
 from pathlib import Path
 
-#not used
+#not used2
 app = Flask(__name__)
 
 # Arquivo onde os dados serão armazenados
