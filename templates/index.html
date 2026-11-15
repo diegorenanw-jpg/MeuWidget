@@ -1,0 +1,174 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu Widget</title>
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="container">
+
+    <header>
+        <h1>Meu espaço</h1>
+        <div id="relogio">00:00:00</div>
+        <div id="data"></div>
+    </header>
+
+    <section class="card">
+        <h2>Minhas tarefas</h2>
+
+        <div class="adicionar">
+            <input
+                type="text"
+                id="novaTarefa"
+                placeholder="Digite uma tarefa..."
+            >
+            <button onclick="adicionarTarefa()">+</button>
+        </div>
+
+        <ul id="listaTarefas"></ul>
+    </section>
+
+    <section class="card">
+        <h2>Minhas anotações</h2>
+
+        <textarea
+            id="anotacoes"
+            placeholder="Escreva suas anotações..."
+        ></textarea>
+
+        <p id="status"></p>
+    </section>
+
+</div>
+
+<script>
+    // Atualiza o relógio
+    function atualizarRelogio() {
+        const agora = new Date();
+
+        document.getElementById("relogio").textContent =
+            agora.toLocaleTimeString("pt-BR");
+
+        document.getElementById("data").textContent =
+            agora.toLocaleDateString("pt-BR", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric"
+            });
+    }
+
+    setInterval(atualizarRelogio, 1000);
+    atualizarRelogio();
+
+
+    // Carrega os dados do Python
+    async function carregarDados() {
+        const resposta = await fetch("/dados");
+        const dados = await resposta.json();
+
+        document.getElementById("anotacoes").value =
+            dados.anotacoes;
+
+        renderizarTarefas(dados.tarefas);
+    }
+
+
+    // Exibe as tarefas
+    function renderizarTarefas(tarefas) {
+        const lista = document.getElementById("listaTarefas");
+
+        lista.innerHTML = "";
+
+        tarefas.forEach(tarefa => {
+            const item = document.createElement("li");
+
+            if (tarefa.concluida) {
+                item.classList.add("concluida");
+            }
+
+            const texto = document.createElement("span");
+            texto.textContent = tarefa.descricao;
+            texto.onclick = () => alterarTarefa(tarefa.id);
+
+            const excluir = document.createElement("button");
+            excluir.textContent = "×";
+            excluir.onclick = () => excluirTarefa(tarefa.id);
+
+            item.append(texto, excluir);
+            lista.appendChild(item);
+        });
+    }
+
+
+    // Adiciona tarefa
+    async function adicionarTarefa() {
+        const campo = document.getElementById("novaTarefa");
+
+        const resposta = await fetch("/tarefas", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({tarefa: campo.value})
+        });
+
+        if (!resposta.ok) {
+            alert("Digite uma tarefa válida!");
+            return;
+        }
+
+        campo.value = "";
+        carregarDados();
+    }
+
+
+    // Conclui tarefa
+    async function alterarTarefa(id) {
+        await fetch(`/tarefas/${id}`, {
+            method: "PATCH"
+        });
+
+        carregarDados();
+    }
+
+
+    // Exclui tarefa
+    async function excluirTarefa(id) {
+        await fetch(`/tarefas/${id}`, {
+            method: "DELETE"
+        });
+
+        carregarDados();
+    }
+
+
+    // Salva anotações
+    let temporizador;
+
+    document.getElementById("anotacoes").addEventListener(
+        "input", function() {
+            clearTimeout(temporizador);
+
+            temporizador = setTimeout(async () => {
+                await fetch("/anotacoes", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({texto: this.value})
+                });
+
+                document.getElementById("status").textContent =
+                    "Anotações salvas!";
+            }, 700);
+        }
+    );
+
+    carregarDados();
+</script>
+
+</body>
+</html>
